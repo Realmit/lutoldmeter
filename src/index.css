@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .liquid-glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    border-left: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 
+      inset 0 1px 2px rgba(255, 255, 255, 0.15),
+      inset 0 -1px 1px rgba(0, 0, 0, 0.2),
+      0 12px 32px rgba(0, 0, 0, 0.35);
+  }
+
+  .liquid-glass-icon-amber {
+    background: radial-gradient(circle at 35% 35%, rgba(245, 158, 11, 0.35) 0%, rgba(245, 158, 11, 0.1) 60%, rgba(0, 0, 0, 0.4) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-top: 1px solid rgba(245, 158, 11, 0.55);
+    border-left: 1px solid rgba(245, 158, 11, 0.55);
+    box-shadow: 
+      inset 0 1px 2px rgba(255, 255, 255, 0.3),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+      0 4px 15px rgba(245, 158, 11, 0.25);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+
+  .liquid-glass-icon-blue {
+    background: radial-gradient(circle at 35% 35%, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0.1) 60%, rgba(0, 0, 0, 0.4) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    border-top: 1px solid rgba(59, 130, 246, 0.55);
+    border-left: 1px solid rgba(59, 130, 246, 0.55);
+    box-shadow: 
+      inset 0 1px 2px rgba(255, 255, 255, 0.3),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+      0 4px 15px rgba(59, 130, 246, 0.25);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+
+  .liquid-glass-icon-red {
+    background: radial-gradient(circle at 35% 35%, rgba(239, 68, 68, 0.35) 0%, rgba(239, 68, 68, 0.1) 60%, rgba(0, 0, 0, 0.4) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-top: 1px solid rgba(239, 68, 68, 0.55);
+    border-left: 1px solid rgba(239, 68, 68, 0.55);
+    box-shadow: 
+      inset 0 1px 2px rgba(255, 255, 255, 0.3),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+      0 4px 15px rgba(239, 68, 68, 0.25);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+
+  .liquid-glass-icon-emerald {
+    background: radial-gradient(circle at 35% 35%, rgba(16, 185, 129, 0.35) 0%, rgba(16, 185, 129, 0.1) 60%, rgba(0, 0, 0, 0.4) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-top: 1px solid rgba(16, 185, 129, 0.55);
+    border-left: 1px solid rgba(16, 185, 129, 0.55);
+    box-shadow: 
+      inset 0 1px 2px rgba(255, 255, 255, 0.3),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+      0 4px 15px rgba(16, 185, 129, 0.25);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+
+  /* General highlight shine that runs across liquid-glass elements */
+  .glossy-glow {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .glossy-glow::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      30deg,
+      rgba(255, 255, 255, 0) 40%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0) 60%
+    );
+    pointer-events: none;
+    transform: rotate(25deg);
+    animation: shine 8s infinite linear;
+  }
+}
+
+@keyframes shine {
+  0% {
+    transform: translate(-30%, -30%) rotate(25deg);
+  }
+  100% {
+    transform: translate(30%, 30%) rotate(25deg);
+  }
+}
