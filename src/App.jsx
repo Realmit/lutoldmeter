@@ -16,22 +16,78 @@ import {
   Languages
 } from 'lucide-react';
 
-// Standard 1/3-stop ISO list
-const STANDARD_ISOS = [
-  6, 8, 10, 12, 16, 20, 25, 32, 40, 50, 64, 80, 100, 125, 160, 200, 250, 320, 
-  400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 6400, 12800
-];
+// Standard values for matching closest outputs based on unit scale
+const STANDARD_VALUES = {
+  iso: [6, 8, 10, 12, 16, 20, 25, 32, 40, 50, 64, 80, 100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 6400, 12800],
+  asa: [6, 8, 10, 12, 16, 20, 25, 32, 40, 50, 64, 80, 100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 6400, 12800],
+  din: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 39, 42],
+  gost_new: [6, 8, 10, 12, 16, 20, 25, 32, 40, 50, 64, 80, 100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 6400, 12800],
+  gost_old: [11, 16, 22, 32, 45, 65, 90, 130, 180, 250, 350, 500, 700, 1000, 1400, 2000, 2800]
+};
 
-// Presets for initial ISO
-const ISO_PRESETS = [25, 50, 64, 100, 160, 200, 400, 800, 1600, 3200];
+// Unit presets
+const PRESETS = {
+  iso: [25, 50, 64, 100, 160, 200, 400, 800, 1600, 3200],
+  asa: [25, 50, 64, 100, 160, 200, 400, 800, 1600, 3200],
+  din: [15, 18, 19, 21, 23, 24, 27, 30, 33, 36],
+  gost_new: [25, 50, 64, 100, 160, 200, 400, 800, 1600, 3200],
+  gost_old: [22, 32, 45, 65, 90, 130, 180, 250, 350, 700]
+};
+
+const UNIT_RANGES = {
+  iso: { min: 12, max: 3200, default: 400 },
+  asa: { min: 12, max: 3200, default: 400 },
+  din: { min: 12, max: 36, default: 27 },
+  gost_new: { min: 12, max: 3200, default: 400 },
+  gost_old: { min: 11, max: 2800, default: 350 }
+};
+
+// Conversion helper functions
+const convertToIso = (val, unit) => {
+  switch (unit) {
+    case 'gost_old':
+      // Old GOST 2817-50 (pre-1987) where GOST = 0.9 * ISO (thus ISO = GOST / 0.9)
+      return val / 0.9;
+    case 'gost_new':
+      // Modern GOST 10691-84 (aligned with ISO 1:1)
+      return val;
+    case 'din':
+      return Math.pow(10, (val - 1) / 10);
+    case 'asa':
+    case 'iso':
+    default:
+      return val;
+  }
+};
+
+const convertFromIso = (iso, unit) => {
+  switch (unit) {
+    case 'gost_old':
+      return iso * 0.9;
+    case 'gost_new':
+      return iso;
+    case 'din':
+      return 1 + 10 * Math.log10(iso);
+    case 'asa':
+    case 'iso':
+    default:
+      return iso;
+  }
+};
 
 // Translation dictionary
 const TRANSLATIONS = {
   en: {
     subtitle: 'Exposure compensation calculator for expired film',
+    gostOldNote: 'Old GOST (pre-1987) uses the 0.9 multiplier (ISO = GOST / 0.9). Used on older Soviet films.',
+    gostNewNote: 'Modern GOST (post-1987) is aligned 1:1 with ISO/ASA (matches Svema/Tasma packaging with GOST and ASA values).',
+    gostOldOption: 'GOST (old, pre-1987)',
+    gostNewOption: 'GOST (new, post-1987)',
     currentYearText: 'Current calculator year: ',
     filmParams: 'Film Parameters',
-    boxSpeed: 'Box Speed (nominal ISO)',
+    inputUnitLabel: 'Input Sensitivity Unit',
+    outputUnitLabel: 'Output Sensitivity Unit',
+    boxSpeed: 'Box Speed (Nominal)',
     expirationAge: 'Expiration Age (ΔT)',
     byYears: 'By Years',
     manualYears: 'Manual (years)',
@@ -43,7 +99,7 @@ const TRANSLATIONS = {
     resetAutoK: 'Reset Auto-K',
     degradationCoeff: 'Degradation Coefficient (K)',
     recommendedRange: 'Recommended range for',
-    degradationGuide: 'Degradation Guide (by nominal ISO):',
+    degradationGuide: 'Degradation Guide (by nominal ISO equivalent):',
     storageConditions: 'Storage Conditions',
     freezer: 'Freezer (-18°C)',
     fridge: 'Refrigerator (4-8°C)',
@@ -56,33 +112,35 @@ const TRANSLATIONS = {
     stable: 'Stable',
     normal: 'Normal',
     narrowLatitude: 'Narrow Latitude',
-    resultingIso: 'Resulting ISO',
-    effSensitivity: 'Effective Sensitivity (ISOeff)',
+    resultingIso: 'Resulting Sensitivity',
+    effSensitivity: 'Effective Sensitivity',
     exposureLost: 'Exposure lost:',
     noChanges: 'No changes',
-    nearestStandardIso: 'Nearest Standard ISO:',
+    nearestStandardIso: 'Nearest Standard',
     reductionFactorLabel: 'Reduction factor:',
     appliedKCoeff: 'Applied K-coeff:',
     shootingRec: 'Shooting Recommendation:',
     meterSetting: 'Lightmeter Settings:',
-    setMeterTo: 'Set to',
+    setMeterTo: 'Set your lightmeter to',
     simulationTitle: 'Correct Exposure Simulation',
-    simulationDesc: 'See how the calculated compensation at {isoEff} ISO offsets emulsion degradation:',
-    noComp: 'No Compensation (at {isoStart} ISO)',
+    simulationDesc: 'See how the calculated compensation offsets emulsion degradation:',
+    noComp: 'No Compensation (at box speed)',
     noCompDesc: 'Underexposed, muddy shadows, heavy grain and fog.',
-    withComp: 'Compensated (at {isoEff} ISO)',
+    withComp: 'Compensated',
     withCompDesc: 'Normal brightness, recovered shadows, vintage tone.',
     howItWorks: 'How does it work? Mathematical Formula',
     formulaExplanation: 'Over time, film sensitivity decreases due to cosmic radiation, background heat, and natural chemical decay of the emulsion. Our formula calculates this sensitivity loss in exposure "stops" (each stop halves the ISO):',
     formulaUsed: 'Formula Used',
     ruleOfThumb: 'In classic film photography, a common rule of thumb is "add 1 stop of exposure per 10 years of expiration". This corresponds to a degradation coefficient of K = 1.0.',
     calculationSteps: 'Real-time Calculation Steps:',
-    stepBoxSpeed: '1. Box Speed (ISO nominal):',
+    stepBoxSpeed: '1. Box Speed (Input):',
+    stepBoxSpeedConverted: 'Nominal converted to ISO:',
     stepExpAge: '2. Expiration Age (ΔT):',
     stepDegradationK: '3. Degradation Coeff (K):',
     stepExponentCalc: '4. Exponent Calculation:',
     stepAttenuation: '5. Attenuation (2^stops):',
     stepResult: 'Result (ISOeff):',
+    stepResultConverted: 'Result converted to Output Unit:',
     footerCopyright: 'LutOldMeter. Made with ❤️ for film photographers.',
     footerWarning: 'Remember that this calculator provides a theoretical estimate. The exact result depends heavily on how the film was stored (freezing significantly slows down degradation). If the film is highly valuable, shooting a test roll is always recommended.',
     freshFilm: 'Film is fresh! Shoot at box speed.',
@@ -105,9 +163,15 @@ const TRANSLATIONS = {
   },
   ru: {
     subtitle: 'Калькулятор экспозиции для просроченной фотоплёнки',
+    gostOldNote: 'Старый ГОСТ (до 1987 года, ГОСТ 2817-50) использует коэффициент 0.9 (ISO = ГОСТ / 0.9). Встречается на старых советских плёнках Свема/Тасма (например, ГОСТ 65, 130, 250).',
+    gostNewNote: 'Новый ГОСТ (после 1987 года, ГОСТ 10691-84) приравнен к ISO/ASA 1:1. Встречается на более свежих упаковках плёнок.',
+    gostOldOption: 'ГОСТ (старый, до 1987 года)',
+    gostNewOption: 'ГОСТ (новый, после 1987 года)',
     currentYearText: 'Текущий год в калькуляторе: ',
     filmParams: 'Параметры плёнки',
-    boxSpeed: 'Номинальная чувствительность (ISOисх)',
+    inputUnitLabel: 'Единицы чувствительности на входе',
+    outputUnitLabel: 'Единицы чувствительности на выходе',
+    boxSpeed: 'Номинал (чувствительность)',
     expirationAge: 'Возраст просрочки (ΔT)',
     byYears: 'По годам',
     manualYears: 'Вручную (лет)',
@@ -119,7 +183,7 @@ const TRANSLATIONS = {
     resetAutoK: 'Сбросить авто-К',
     degradationCoeff: 'Коэффициент деградации (K)',
     recommendedRange: 'Рекомендуемый диапазон для',
-    degradationGuide: 'Справочник деградации (от ISOисх):',
+    degradationGuide: 'Справочник деградации (в эквиваленте ISO):',
     storageConditions: 'Условия хранения',
     freezer: 'Морозилка (-18°C)',
     fridge: 'Холодильник (4-8°C)',
@@ -132,33 +196,35 @@ const TRANSLATIONS = {
     stable: 'Стабильнее',
     normal: 'Норма',
     narrowLatitude: 'Сложная широта',
-    resultingIso: 'Результирующее ISO',
-    effSensitivity: 'Эффективная чувствительность (ISOэфф)',
+    resultingIso: 'Результирующая чувствительность',
+    effSensitivity: 'Эффективная чувствительность',
     exposureLost: 'Потеряно экспозиции:',
     noChanges: 'Без изменений',
-    nearestStandardIso: 'Ближайшее стандартное ISO:',
+    nearestStandardIso: 'Ближайшее стандартное',
     reductionFactorLabel: 'Коэффициент ослабления:',
     appliedKCoeff: 'Использованный K-коэф:',
     shootingRec: 'Рекомендация по съёмке:',
     meterSetting: 'Настройка экспонометра:',
-    setMeterTo: 'Выставить',
+    setMeterTo: 'Выставить на экспонометре',
     simulationTitle: 'Симуляция правильной экспозиции',
-    simulationDesc: 'Посмотрите, как экспокоррекция по расчету {isoEff} ISO компенсирует деградацию эмульсии:',
-    noComp: 'Без компенсации (на {isoStart} ISO)',
+    simulationDesc: 'Посмотрите, как экспокоррекция по расчету компенсирует деградацию эмульсии:',
+    noComp: 'Без компенсации (на номинале)',
     noCompDesc: 'Недоэкспонировано, тёмные тени, сильное зерно и вуаль.',
-    withComp: 'С компенсацией (на {isoEff} ISO)',
+    withComp: 'С компенсацией',
     withCompDesc: 'Нормальная яркость, проработанные тени, винтажный тон.',
     howItWorks: 'Как устроен расчёт? Математика формулы',
     formulaExplanation: 'С течением времени чувствительность фотоплёнки падает из-за космического излучения, фонового тепла и естественного распада химических элементов эмульсии. Наша формула вычисляет падение чувствительности в экспозиционных «стопах» (каждый стоп — это уменьшение ISO в 2 раза):',
     formulaUsed: 'Используемая формула',
     ruleOfThumb: 'В классической плёночной фотографии есть эмпирическое правило: «добавлять 1 стоп экспозиции на каждые 10 лет просрочки». Это соответствует значению коэффициента K = 1.0.',
     calculationSteps: 'Расчёт на ваших глазах (пошагово):',
-    stepBoxSpeed: '1. Исходное ISO (ISOисх):',
+    stepBoxSpeed: '1. Номинал на входе:',
+    stepBoxSpeedConverted: 'Номинал в переводе на ISO:',
     stepExpAge: '2. Срок просрочки (ΔT):',
     stepDegradationK: '3. Коэффициент деградации (K):',
     stepExponentCalc: '4. Расчет показателя степени:',
     stepAttenuation: '5. Ослабление (2^стопы):',
     stepResult: 'Результат (ISOэфф):',
+    stepResultConverted: 'Результат в целевых единицах:',
     footerCopyright: 'LutOldMeter. Сделано с ❤️ для плёночных фотографов.',
     footerWarning: 'Помните, что данный калькулятор даёт теоретическую оценку. Точный результат зависит от истории хранения плёнки (замораживание значительно снижает скорость деградации). Если плёнка представляет большую ценность, всегда рекомендуется отснять тестовый ролик.',
     freshFilm: 'Плёнка свежая! Экспонируйте как обычно по номиналу.',
@@ -169,7 +235,7 @@ const TRANSLATIONS = {
     years: 'лет',
     yearSingular: 'год',
     stops: 'стопов',
-    stopSingular: 'стоп',
+    stopSingular: 'stop',
     lowDeg: 'Низкая деградация',
     classicLoss: 'Классическая потеря',
     fastDeg: 'Быстрое разрушение',
@@ -182,14 +248,18 @@ const TRANSLATIONS = {
 };
 
 function App() {
-  // Lang state (defaults to English as requested)
+  // Lang state (defaults to English)
   const [lang, setLang] = useState('en');
+
+  // Units selection (defaults to gost_old to start with classic Soviet units)
+  const [inputUnit, setInputUnit] = useState('gost_old'); 
+  const [outputUnit, setOutputUnit] = useState('iso'); 
 
   // Short hand translation getter
   const t = (key) => TRANSLATIONS[lang][key] || key;
 
-  // Main states
-  const [isoStart, setIsoStart] = useState(400);
+  // Sensitivity states
+  const [inputValue, setInputValue] = useState(350); // matching old GOST default
   const [expireYear, setExpireYear] = useState(2016);
   const [currentYear, setCurrentYear] = useState(2026);
   const [deltaTManual, setDeltaTManual] = useState(10);
@@ -199,11 +269,19 @@ function App() {
   const [filmType, setFilmType] = useState('color_neg'); // bw, color_neg, slide
   const [isKManual, setIsKManual] = useState(false);
 
+  // Sync default input value when input unit changes
+  useEffect(() => {
+    setInputValue(UNIT_RANGES[inputUnit].default);
+  }, [inputUnit]);
+
+  // Derived nominal ISO
+  const isoStart = convertToIso(inputValue, inputUnit);
+
   // Derived Delta T (years in expiry)
   const calculatedDeltaT = Math.max(0, currentYear - expireYear);
   const deltaT = useManualDeltaT ? deltaTManual : calculatedDeltaT;
 
-  // Function to get K recommendations
+  // Function to get K recommendations (based on equivalent nominal ISO)
   const getKRecommendation = (iso) => {
     if (iso <= 64) {
       return { 
@@ -245,23 +323,22 @@ function App() {
   // Auto update K coefficient if not manually modified
   useEffect(() => {
     if (!isKManual) {
-      // Modify default K based on storage conditions & film type (optional but nice adjustments)
       let baseK = kRec.default;
       
-      // We'll apply storage multipliers if user selects them
+      // Apply storage multipliers
       let multiplier = 1.0;
-      if (storage === 'freezer') multiplier = 0.2; // Frozen preserves film extremely well
-      if (storage === 'fridge') multiplier = 0.5;   // Cold preserves
-      if (storage === 'hot') multiplier = 1.6;      // Heat accelerates
+      if (storage === 'freezer') multiplier = 0.2;
+      if (storage === 'fridge') multiplier = 0.5;
+      if (storage === 'hot') multiplier = 1.6;
 
-      // Adjust based on film type (B&W degrades slower, slide film degrades normally but behaves terribly)
+      // Adjust based on film type
       let typeMult = 1.0;
-      if (filmType === 'bw') typeMult = 0.8; // B&W is more stable
+      if (filmType === 'bw') typeMult = 0.8;
 
       const adjustedK = parseFloat((baseK * multiplier * typeMult).toFixed(2));
       setKCoeff(adjustedK);
     }
-  }, [isoStart, storage, filmType, isKManual, lang]); // added lang dependency to refresh descriptions inside getKRecommendation
+  }, [isoStart, storage, filmType, isKManual, lang]);
 
   // Recalculate K if user resets manual override
   const handleResetK = () => {
@@ -274,9 +351,18 @@ function App() {
   const rawIsoEff = isoStart / reductionFactor;
   const isoEff = Math.max(1, Math.round(rawIsoEff));
 
-  // Find closest standard ISO
-  const closestStandardIso = STANDARD_ISOS.reduce((prev, curr) => {
-    return Math.abs(curr - rawIsoEff) < Math.abs(prev - rawIsoEff) ? curr : prev;
+  // Convert raw and computed ISO back to Output Unit
+  const rawOutputEff = convertFromIso(rawIsoEff, outputUnit);
+  
+  // Custom rounding for DIN
+  const formattedOutputEff = outputUnit === 'din' 
+    ? Math.max(1, Math.round(rawOutputEff)) 
+    : Math.max(1, Math.round(rawOutputEff));
+
+  // Find closest standard value for the Output Unit
+  const outputStandards = STANDARD_VALUES[outputUnit];
+  const closestStandardOutput = outputStandards.reduce((prev, curr) => {
+    return Math.abs(curr - rawOutputEff) < Math.abs(prev - rawOutputEff) ? curr : prev;
   });
 
   // Exposure recommendation text
@@ -323,8 +409,23 @@ function App() {
     }
   }
 
+  const getUnitName = (unit) => {
+    switch (unit) {
+      case 'gost_old':
+        return lang === 'ru' ? 'ГОСТ (старый)' : 'Old GOST';
+      case 'gost_new':
+        return lang === 'ru' ? 'ГОСТ (новый)' : 'New GOST';
+      case 'din':
+        return 'DIN';
+      case 'asa':
+        return 'ASA';
+      case 'iso':
+      default:
+        return 'ISO';
+    }
+  };
+
   // Visual simulation of exposure
-  // We want to simulate underexposed (box ISO), correct (calculated ISO), and overexposed
   const getSimulationStyle = (type) => {
     if (type === 'underexposed') {
       const diff = Math.min(3, stopsLost);
@@ -401,7 +502,7 @@ function App() {
       <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* LEFT COLUMN: Controls & Settings (7 cols on large screens) */}
+          {/* LEFT COLUMN: Controls & Settings */}
           <div className="lg:col-span-7 space-y-6">
             
             {/* Card 1: Film parameters */}
@@ -416,45 +517,97 @@ function App() {
               </div>
 
               <div className="space-y-6">
-                {/* Initial ISO */}
+                
+                {/* Unit Selectors */}
+                <div className="grid grid-cols-2 gap-4 bg-[#1b1e2c] p-4 rounded-xl border border-[#272a3f]">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#a0a5b8] mb-2 uppercase tracking-wider">
+                      {t('inputUnitLabel')}
+                    </label>
+                    <select
+                      value={inputUnit}
+                      onChange={(e) => setInputUnit(e.target.value)}
+                      className="w-full bg-[#222530] border border-[#2e3344] rounded-lg px-2.5 py-1.5 text-white font-bold text-xs uppercase focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="iso">ISO / ASA</option>
+                      <option value="gost_new">{t('gostNewOption')}</option>
+                      <option value="gost_old">{t('gostOldOption')}</option>
+                      <option value="din">DIN</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#a0a5b8] mb-2 uppercase tracking-wider">
+                      {t('outputUnitLabel')}
+                    </label>
+                    <select
+                      value={outputUnit}
+                      onChange={(e) => setOutputUnit(e.target.value)}
+                      className="w-full bg-[#222530] border border-[#2e3344] rounded-lg px-2.5 py-1.5 text-white font-bold text-xs uppercase focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="iso">ISO / ASA</option>
+                      <option value="gost_new">{t('gostNewOption')}</option>
+                      <option value="gost_old">{t('gostOldOption')}</option>
+                      <option value="din">DIN</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Input Value Slider */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-sm font-medium text-[#c5c9d6] flex items-center gap-1.5">
                       {t('boxSpeed')}
                     </label>
-                    <span className="text-xl font-bold text-amber-400">{isoStart} ISO</span>
+                    <span className="text-xl font-bold text-amber-400">
+                      {inputValue} {getUnitName(inputUnit).toUpperCase()}
+                      {inputUnit !== 'iso' && inputUnit !== 'asa' && (
+                        <span className="text-xs text-[#a0a5b8] font-normal block text-right mt-0.5">
+                          (~ {Math.round(isoStart)} ISO)
+                        </span>
+                      )}
+                    </span>
                   </div>
                   
-                  {/* Slider */}
                   <input 
                     type="range" 
-                    min="12" 
-                    max="3200" 
+                    min={UNIT_RANGES[inputUnit].min} 
+                    max={UNIT_RANGES[inputUnit].max} 
                     step="1"
-                    value={isoStart} 
-                    onChange={(e) => setIsoStart(Number(e.target.value))}
+                    value={inputValue} 
+                    onChange={(e) => setInputValue(Number(e.target.value))}
                     className="w-full h-2 bg-[#222530] rounded-lg appearance-none cursor-pointer accent-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 mb-3"
                   />
 
-                  {/* ISO Presets */}
+                  {/* Preset Values based on input unit */}
                   <div className="flex flex-wrap gap-1.5">
-                    {ISO_PRESETS.map((preset) => (
+                    {PRESETS[inputUnit].map((preset) => (
                       <button
                         key={preset}
-                        onClick={() => setIsoStart(preset)}
+                        onClick={() => setInputValue(preset)}
                         className={`text-xs px-2.5 py-1.5 rounded transition-all font-semibold ${
-                          isoStart === preset 
+                          inputValue === preset 
                             ? 'bg-amber-500 text-[#111318] font-bold shadow-md' 
                             : 'bg-[#222530] text-[#a0a5b8] hover:bg-[#2b2f3e] hover:text-white'
                         }`}
                       >
-                        {preset}
+                        {preset} {getUnitName(inputUnit).toUpperCase()}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <hr className="border-[#222530]" />
+
+                {inputUnit === 'gost_old' && (
+                  <p className="text-[11px] text-[#9095a6] bg-[#1a1d29] p-2.5 rounded-lg border border-[#252838] leading-normal">
+                    💡 {t('gostOldNote')}
+                  </p>
+                )}
+                {inputUnit === 'gost_new' && (
+                  <p className="text-[11px] text-[#9095a6] bg-[#1a1d29] p-2.5 rounded-lg border border-[#252838] leading-normal">
+                    💡 {t('gostNewNote')}
+                  </p>
+                )}
 
                 {/* Expiration and delta T */}
                 <div>
@@ -578,7 +731,7 @@ function App() {
                   </div>
                   
                   <p className="text-xs text-[#9095a6] mb-3">
-                    {t('recommendedRange')} {isoStart} ISO: <b className="text-white">{kRec.min} – {kRec.max}</b> ({kRec.label})
+                    {t('recommendedRange')} {Math.round(isoStart)} ISO: <b className="text-white">{kRec.min} – {kRec.max}</b> ({kRec.label})
                   </p>
 
                   <input 
@@ -751,12 +904,11 @@ function App() {
 
           </div>
 
-          {/* RIGHT COLUMN: Results & Recommendations (5 cols on large screens) */}
+          {/* RIGHT COLUMN: Results & Recommendations */}
           <div className="lg:col-span-5 space-y-6">
             
             {/* Calculation Result Card */}
             <div className="bg-[#1c1e2d] border border-[#30344d] rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-              {/* Decorative light leak effect at the top right */}
               <div className="absolute -top-16 -right-16 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none"></div>
               
               <div className="flex items-center space-x-3 mb-4">
@@ -766,13 +918,13 @@ function App() {
                 <h2 className="text-lg font-bold text-white">{t('resultingIso')}</h2>
               </div>
 
-              {/* Main computed ISO number */}
+              {/* Main computed result value */}
               <div className="text-center py-6 bg-[#131521] rounded-xl border border-[#2a2d42] mb-5">
                 <span className="block text-xs uppercase tracking-widest text-[#8a8fa3] mb-1 font-semibold">
-                  {t('effSensitivity')}
+                  {t('effSensitivity')} ({getUnitName(outputUnit).toUpperCase()})
                 </span>
                 <span className="text-6xl font-black text-white tracking-tight">
-                  {isoEff}
+                  {formattedOutputEff}
                 </span>
                 <span className="block text-xs text-amber-400 mt-2 font-medium">
                   {deltaT > 0 ? `${t('exposureLost')} ~${stopsLost.toFixed(2)} ${getStopsPlural(stopsLost)}` : t('noChanges')}
@@ -780,13 +932,13 @@ function App() {
               </div>
 
               <div className="space-y-4 text-sm">
-                {/* Nearest Standard ISO */}
+                {/* Nearest Standard Result */}
                 <div className="flex justify-between items-center py-2.5 border-b border-[#292d3f]">
                   <span className="text-[#a0a5b8] flex items-center gap-1.5">
-                    {t('nearestStandardIso')}
+                    {t('nearestStandardIso')} ({getUnitName(outputUnit).toUpperCase()}):
                   </span>
                   <span className="font-bold text-white text-base bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
-                    {closestStandardIso}
+                    {closestStandardOutput} {getUnitName(outputUnit).toUpperCase()}
                   </span>
                 </div>
 
@@ -826,7 +978,7 @@ function App() {
                   <div className="mt-3 pt-3 border-t border-[#313854] flex items-center justify-between text-[#a0a5b8]">
                     <span>{t('meterSetting')}</span>
                     <span className="font-bold text-white flex items-center gap-1">
-                      {t('setMeterTo')} {closestStandardIso} ISO
+                      {t('setMeterTo')} {closestStandardOutput} {getUnitName(outputUnit).toUpperCase()}
                     </span>
                   </div>
                 )}
@@ -843,7 +995,7 @@ function App() {
               </div>
 
               <p className="text-xs text-[#9095a6] mb-4">
-                {t('simulationDesc').replace('{isoEff}', isoEff)}
+                {t('simulationDesc')}
               </p>
 
               {/* Simulated Image comparison */}
@@ -860,7 +1012,7 @@ function App() {
                       }}
                     />
                     <div className="absolute bottom-1 left-1 right-1 bg-black/60 backdrop-blur-xs py-0.5 px-1.5 rounded text-[10px] text-center text-red-400 font-semibold border border-red-500/20">
-                      {t('noComp').replace('{isoStart}', isoStart)}
+                      {t('noComp')}
                     </div>
                   </div>
                   <p className="text-[10px] text-center text-[#9095a6] leading-snug">
@@ -880,7 +1032,7 @@ function App() {
                       }}
                     />
                     <div className="absolute bottom-1 left-1 right-1 bg-black/60 backdrop-blur-xs py-0.5 px-1.5 rounded text-[10px] text-center text-green-400 font-semibold border border-green-500/20">
-                      {t('withComp').replace('{isoEff}', isoEff)}
+                      {t('withComp')}
                     </div>
                   </div>
                   <p className="text-[10px] text-center text-[#9095a6] leading-snug">
@@ -927,8 +1079,14 @@ function App() {
               <ol className="space-y-2 text-xs leading-relaxed">
                 <li className="flex justify-between">
                   <span>{t('stepBoxSpeed')}</span>
-                  <span className="text-white font-mono">{isoStart}</span>
+                  <span className="text-white font-mono">{inputValue} {getUnitName(inputUnit).toUpperCase()}</span>
                 </li>
+                {inputUnit !== 'iso' && (
+                  <li className="flex justify-between text-[#8a8fa3]">
+                    <span>{t('stepBoxSpeedConverted')}</span>
+                    <span className="font-mono">{isoStart.toFixed(1)} ISO</span>
+                  </li>
+                )}
                 <li className="flex justify-between">
                   <span>{t('stepExpAge')}</span>
                   <span className="text-white font-mono">{deltaT} {getYearsPlural(deltaT)}</span>
@@ -945,10 +1103,16 @@ function App() {
                   <span>{t('stepAttenuation')}</span>
                   <span className="text-[#a0a5b8] font-mono">2^{stopsLost.toFixed(2)} = {lang === 'ru' ? `в ${reductionFactor.toFixed(2)} раз` : `${reductionFactor.toFixed(2)}x`}</span>
                 </li>
-                <li className="flex justify-between border-t border-[#25283b] pt-2 mt-1 font-bold text-white">
+                <li className="flex justify-between border-t border-[#25283b] pt-2 mt-1">
                   <span>{t('stepResult')}</span>
-                  <span className="text-amber-400 font-mono">{isoStart} / {reductionFactor.toFixed(2)} = {rawIsoEff.toFixed(1)} → {isoEff} ISO</span>
+                  <span className="text-amber-400 font-mono">{isoStart.toFixed(1)} / {reductionFactor.toFixed(2)} = {rawIsoEff.toFixed(1)} → {isoEff} ISO</span>
                 </li>
+                {outputUnit !== 'iso' && (
+                  <li className="flex justify-between border-t border-[#25283b] pt-2 mt-1 font-bold text-white">
+                    <span>{t('stepResultConverted')}</span>
+                    <span className="text-amber-400 font-mono">{rawOutputEff.toFixed(2)} → {formattedOutputEff} {getUnitName(outputUnit).toUpperCase()}</span>
+                  </li>
+                )}
               </ol>
             </div>
           </div>
