@@ -35,6 +35,7 @@ Where:
 4. **Closest Standard ISO Selector:** Instantly provides the nearest standard 1/3-stop ISO setting to adjust your camera's light meter or exposure dials.
 5. **Interactive Exposure Simulator:** View simulated visual changes side-by-side: expired film shot at box speed vs. compensated exposure.
 6. **Detailed Step-by-Step Math Breakdown:** Watch the mathematical calculations unfold in real-time.
+7. **Development Timer & Technology Guide:** Interactive process timer with acoustic notifications for agitation cues. Calculates custom development times based on film type, grain/emulsion structure (thin, medium, thick), developer chemical (PM Metol, D-76, Rodinal, etc.), temperature, dilution, and roll reuse counter.
 
 ---
 
